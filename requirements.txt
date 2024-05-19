@@ -4,3 +4,4 @@ plotly==5.18.0
 numpy==1.26.3
 pymongo==4.7.2
 python-dotenv==1.0.1
+urllib3==1.26.18
