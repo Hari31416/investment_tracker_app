@@ -7,7 +7,12 @@ from mutual_funds import Portfolio
 from plots_and_summary import *
 
 logger = get_simple_logger("app")
-st.set_page_config(layout="wide")
+st.set_page_config(
+    layout="wide",
+    page_title="Mutual Fund Portfolio Analysis",
+    page_icon="🧊",
+    initial_sidebar_state="expanded",
+)
 # center the page
 st.markdown(
     """
@@ -120,29 +125,25 @@ def get_all_holdings(pnl_all):
     return names_scheme_mapping, schemes_names_mapping
 
 
-already_clicked = False
-
-
 def get_user_name():
-    global already_clicked
     textbox = st.text_input("Enter your username")
     submit_btn = st.button("Submit")
-    while not submit_btn and not already_clicked:
+    while not submit_btn:
         time.sleep(1)
-    already_clicked = True
+
     logger.info(f"User {textbox} clicked submit")
     return textbox, submit_btn
 
 
-# textbox, submit_btn = get_user_name()
-textbox = env.USERNAME
+textbox, submit_btn = get_user_name()
+username = textbox
 
-# if submit_btn:
+
 try:
-    pnl, portfolio = create_portfolio(textbox)
+    pnl, portfolio = create_portfolio(username)
     pnl_all = portfolio.pnl
 except NoTranscation as e:
-    error_text = f"User {textbox} does not have any transcations"
+    error_text = f"User {username} does not have any transcations"
     st.error(error_text)
     st.stop()
 
