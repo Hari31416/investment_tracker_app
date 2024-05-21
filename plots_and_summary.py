@@ -1,4 +1,5 @@
 from typing import List, Dict
+from collections import OrderedDict
 import pandas as pd
 from pymongo import MongoClient
 from urllib.parse import quote_plus
@@ -65,6 +66,64 @@ def create_mapping():
     mapping_c = db["mappings"]
     mapping = mapping_c.find_one()["isin_to_scheme_code"]
     return mapping
+
+
+def get_all_holdings(pnl_all):
+    mapping = create_mapping()
+    schemes = pnl_all["scheme_code"].unique().tolist()
+    names = []
+    for scheme in schemes:
+        matched = list(filter(lambda x: x["scheme_code"] == scheme, mapping))
+        if matched:
+            names.append(matched[0]["symbol"])
+        else:
+            names.append("Unknown")
+
+    names_scheme_mapping = OrderedDict(zip(schemes, names))
+    schemes_names_mapping = OrderedDict(zip(names, schemes))
+    return names_scheme_mapping, schemes_names_mapping
+
+
+def create_scheme_level_summary(pnl_all, names_scheme_mapping, num_days=3):
+    pnl_all["date"] = pd.to_datetime(pnl_all["date"])
+    dates = pnl_all["date"].unique()
+    dates = sorted(dates)
+    # select maximum three dates
+    dates_to_take = dates[-num_days:]
+
+    pnl_summary = pnl_all[pnl_all["date"].isin(dates_to_take)]
+    pnl_summary["scheme_name"] = pnl_summary["scheme_code"].replace(
+        names_scheme_mapping
+    )
+    pnl_summary = pnl_summary.sort_index(ascending=False)
+
+    pnl_summary_pivot = (
+        pnl_summary.pivot(
+            index="scheme_name", columns="date", values=["pnl", "pnl_percentage"]
+        )
+        .fillna(0)
+        .reset_index()
+    )
+    pnl_summary_pivot.columns = ["scheme"] + [
+        f"{col[0]}_{col[1].date()}" for col in pnl_summary_pivot.columns[1:]
+    ]
+    pnl_summary_pivot = pnl_summary_pivot.T.sort_index(ascending=False).T
+    pnl_summary_pivot = pnl_summary_pivot.sort_values(
+        by=pnl_summary_pivot.columns[1], ascending=False
+    )
+    float_columns = pnl_summary_pivot.columns[1 : len(dates_to_take) + 1]
+    int_columns = pnl_summary_pivot.columns[len(dates_to_take) + 1 :]
+    pnl_summary_pivot[int_columns] = pnl_summary_pivot[int_columns].astype(int)
+    pnl_summary_pivot[float_columns] = pnl_summary_pivot[float_columns].round(2)
+    og_columns = pnl_summary_pivot.columns
+    new_columns = [col.title() for col in og_columns]
+    rename_map = dict(zip(og_columns, new_columns))
+    pnl_summary_pivot = pnl_summary_pivot.rename(columns=rename_map).T
+
+    pnl_summary_pivot.columns = pnl_summary_pivot.iloc[0]
+    pnl_summary_pivot = pnl_summary_pivot[1:]
+
+    return pnl_summary_pivot
 
 
 label_map = {
