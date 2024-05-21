@@ -88,7 +88,7 @@ def plot_all(pnl, holding=None):
         st.write("Summary")
         extra_deltas = st.multiselect(
             "Select Extra Deltas in Days. This will be added to the summary",
-            options=list(range(35, 700, 5)),
+            options=list(range(5, 700, 1)),
         )
         summary_df = create_summary(pnl=pnl, extra_deltas=extra_deltas)
         st.dataframe(summary_df)
