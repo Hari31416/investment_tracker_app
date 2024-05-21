@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit_authenticator as stauth
 import env as env
 import time
 from collections import OrderedDict
@@ -40,6 +41,29 @@ def create_portfolio(username):
     portfolio = Portfolio(transcations=transactions)
     pnl = portfolio.get_pnl_timeseries()
     return pnl, portfolio
+
+
+config = load_config()
+authenticator = stauth.Authenticate(
+    config["credentials"],
+    config["cookie"]["name"],
+    config["cookie"]["key"],
+    config["cookie"]["expiry_days"],
+    config["pre-authorized"],
+)
+
+name, authentication_status, username = authenticator.login(
+    location="main", fields=["name", "username"]
+)
+
+if st.session_state["authentication_status"]:
+    authenticator.logout()
+    st.write(f'Welcome *{st.session_state["name"]}*')
+
+elif st.session_state["authentication_status"] is False:
+    st.error("Username/password is incorrect")
+elif st.session_state["authentication_status"] is None:
+    st.warning("Please enter your username and password")
 
 
 def plot_all(pnl, holding=None):
@@ -125,21 +149,9 @@ def get_all_holdings(pnl_all):
     return names_scheme_mapping, schemes_names_mapping
 
 
-def get_user_name():
-    textbox = st.text_input("Enter your username")
-    submit_btn = st.button("Submit")
-    while not submit_btn:
-        time.sleep(1)
-
-    logger.info(f"User {textbox} clicked submit")
-    return textbox, submit_btn
-
-
-textbox, submit_btn = get_user_name()
-username = textbox
-
-
 try:
+    if username is None:
+        st.stop()
     pnl, portfolio = create_portfolio(username)
     pnl_all = portfolio.pnl
 except NoTranscation as e:
