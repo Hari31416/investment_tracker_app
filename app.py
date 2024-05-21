@@ -43,7 +43,17 @@ def create_portfolio(username):
     return pnl, portfolio
 
 
-config = load_config()
+@st.cache_data
+def load_config_():
+    return load_config()
+
+
+@st.cache_data
+def get_all_holdings_(pnl):
+    return get_all_holdings(pnl)
+
+
+config = load_config_()
 authenticator = stauth.Authenticate(
     config["credentials"],
     config["cookie"]["name"],
@@ -66,32 +76,63 @@ elif st.session_state["authentication_status"] is None:
     st.warning("Please enter your username and password")
 
 
-def plot_all(pnl, holding=None):
-    (
-        summary_tab,
-        pnl_tab,
-        # pnl_percentage_tab,
-        total_investment_tab,
-        # current_value_tab,
-    ) = st.tabs(
-        [
-            "Summary",
-            "PnL",
-            # "PnL Percentage",
-            "Total Investment",
-            # "Current Value",
-        ]
-    )
+def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
+    if holding is None:
+        (
+            summary_tab,
+            scheme_level_summary_tab,
+            pnl_tab,
+            total_investment_tab,
+        ) = st.tabs(
+            [
+                "Summary",
+                "Scheme Level Summary",
+                "PnL",
+                "Total Investment",
+            ]
+        )
+    else:
+        (
+            summary_tab,
+            pnl_tab,
+            total_investment_tab,
+        ) = st.tabs(
+            [
+                "Summary",
+                "PnL",
+                "Total Investment",
+            ]
+        )
+        scheme_level_summary_tab = None
+
     logger.info("Plotting")
 
     with summary_tab:
         st.write("Summary")
         extra_deltas = st.multiselect(
             "Select Extra Deltas in Days. This will be added to the summary",
-            options=list(range(5, 700, 1)),
+            options=list(range(4, 700, 1)),
         )
-        summary_df = create_summary(pnl=pnl, extra_deltas=extra_deltas)
-        st.dataframe(summary_df)
+        try:
+            summary_df = create_summary(pnl=pnl, extra_deltas=extra_deltas)
+            st.dataframe(summary_df)
+        except Exception as e:
+            st.error(f"Error in creating summary: {e}")
+
+    if scheme_level_summary_tab is not None:
+        with scheme_level_summary_tab:
+            num_days = st.slider(
+                "Number of Days to look back for the scheme level summary",
+                min_value=1,
+                max_value=15,
+                value=3,
+                step=1,
+            )
+            st.write("Scheme Level Summary")
+            pnl_summary_scheme_level = create_scheme_level_summary(
+                pnl_all, names_scheme_mapping, num_days
+            )
+            st.dataframe(pnl_summary_scheme_level)
 
     def create_figure_element_with_resample(func_to_use, **kwargs):
         resample_frequency = st.selectbox(
@@ -102,7 +143,6 @@ def plot_all(pnl, holding=None):
         )
         fig = func_to_use(resample_frequency=resample_frequency, **kwargs)
         with st.container():
-            # center the plot
             st.plotly_chart(fig)
 
     if holding is None:
@@ -115,38 +155,12 @@ def plot_all(pnl, holding=None):
             plot_pnl_and_pnl_percentage, df=pnl, transaction_dates=transaction_dates
         )
 
-    # with pnl_percentage_tab:
-    #     create_figure_element_with_resample(
-    #         plot_pnl_percentage, df=pnl, transaction_dates=transaction_dates
-    #     )
-
     with total_investment_tab:
         create_figure_element_with_resample(
             plot_total_investment_and_current_value,
             df=pnl,
             transaction_dates=transaction_dates,
         )
-
-    # with current_value_tab:
-    #     create_figure_element_with_resample(
-    #         plot_current_value, df=pnl, transaction_dates=transaction_dates
-    #     )
-
-
-def get_all_holdings(pnl_all):
-    mapping = create_mapping()
-    schemes = pnl_all["scheme_code"].unique().tolist()
-    names = []
-    for scheme in schemes:
-        matched = list(filter(lambda x: x["scheme_code"] == scheme, mapping))
-        if matched:
-            names.append(matched[0]["symbol"])
-        else:
-            names.append("Unknown")
-
-    names_scheme_mapping = OrderedDict(zip(schemes, names))
-    schemes_names_mapping = OrderedDict(zip(names, schemes))
-    return names_scheme_mapping, schemes_names_mapping
 
 
 try:
@@ -159,7 +173,7 @@ except NoTranscation as e:
     st.error(error_text)
     st.stop()
 
-names_scheme_mapping, schemes_names_mapping = get_all_holdings(pnl_all)
+names_scheme_mapping, schemes_names_mapping = get_all_holdings_(pnl_all)
 names = list(names_scheme_mapping.values())
 names = ["Portfolio"] + names
 
@@ -179,4 +193,4 @@ with st.sidebar:
         pnl_to_use = pnl
         holding = None
 
-plot_all(pnl_to_use, holding)
+plot_all(pnl_to_use, holding, names_scheme_mapping, pnl_all)
