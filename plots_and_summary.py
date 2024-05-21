@@ -31,6 +31,25 @@ def get_mongo_client():
     return client
 
 
+def load_config():
+    client = get_mongo_client()
+    db = client["funds"]
+    collection = db["users"]
+    config = collection.find_one()
+    if not config:
+        raise Exception("No config found")
+    logger.info("Config loaded")
+    return config
+
+
+def save_config(config):
+    client = get_mongo_client()
+    db = client["funds"]
+    collection = db["users"]
+    collection.update_one({}, {"$set": config})
+    logger.info("Config saved")
+
+
 def get_transcations(client, username):
     db = client["funds"]
     transcations = db["transactions"]
