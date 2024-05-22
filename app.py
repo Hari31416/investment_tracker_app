@@ -1,12 +1,15 @@
 import streamlit as st
+from streamlit_modal import Modal
 import streamlit_authenticator as stauth
 import env as env
-import time
 from datetime import datetime
-from collections import OrderedDict
 
 from mutual_funds import Portfolio
 from plots_and_summary import *
+
+import matplotlib
+
+cmap = matplotlib.colormaps["RdYlGn"]
 
 logger = get_simple_logger("app")
 st.set_page_config(
@@ -68,13 +71,34 @@ name, authentication_status, username = authenticator.login(
 )
 
 if st.session_state["authentication_status"]:
-    authenticator.logout()
+    authenticator.logout(location="sidebar")
     st.write(f'Welcome *{st.session_state["name"]}*')
 
 elif st.session_state["authentication_status"] is False:
     st.error("Username/password is incorrect")
 elif st.session_state["authentication_status"] is None:
     st.warning("Please enter your username and password")
+
+# columns = st.columns([1, 1, 1])
+# # create a register user button on top right
+# register_user_btn = columns[2].button("Register User")
+
+
+# if register_user_btn:
+#     modal = Modal(key="register_user", title="Register User")
+#     with modal.container():
+#         try:
+#             (
+#                 email_of_registered_user,
+#                 username_of_registered_user,
+#                 name_of_registered_user,
+#             ) = authenticator.register_user(pre_authorization=False)
+#             if email_of_registered_user:
+#                 st.success("User registered successfully")
+#                 save_config(config)
+
+#         except Exception as e:
+#             st.error(e)
 
 
 def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
@@ -116,7 +140,7 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
         )
         try:
             summary_df = create_summary(pnl=pnl, extra_deltas=extra_deltas)
-            st.dataframe(summary_df)
+            st.dataframe(summary_df.style.background_gradient(cmap=cmap, axis=0))
         except Exception as e:
             st.error(f"Error in creating summary: {e}")
 
@@ -133,7 +157,9 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
             pnl_summary_scheme_level = create_scheme_level_summary(
                 pnl_all, names_scheme_mapping, num_days
             )
-            st.dataframe(pnl_summary_scheme_level)
+            st.dataframe(
+                pnl_summary_scheme_level.style.background_gradient(cmap=cmap, axis=0)
+            )
 
     def create_figure_element_with_resample(func_to_use, **kwargs):
         resample_frequency = st.selectbox(
@@ -167,9 +193,10 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
 try:
     if username is None:
         st.stop()
-    date = datetime.today()
+    date = datetime.today().strftime("%Y-%m-%d")
     pnl, portfolio = create_portfolio(username, date)
-    pnl_all = portfolio.pnl
+    pnl_all = portfolio.pnl.copy()
+    pnl = pnl.copy()
 except NoTranscation as e:
     error_text = f"User {username} does not have any transcations"
     st.error(error_text)
