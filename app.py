@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import env as env
 import time
+from datetime import datetime
 from collections import OrderedDict
 
 from mutual_funds import Portfolio
@@ -34,7 +35,7 @@ st.title("Mutual Fund Portfolio Analysis")
 
 
 @st.cache_data
-def create_portfolio(username):
+def create_portfolio(username, date):
     client = get_mongo_client()
     transactions = get_transcations(client, username)
 
@@ -166,7 +167,8 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
 try:
     if username is None:
         st.stop()
-    pnl, portfolio = create_portfolio(username)
+    date = datetime.today()
+    pnl, portfolio = create_portfolio(username, date)
     pnl_all = portfolio.pnl
 except NoTranscation as e:
     error_text = f"User {username} does not have any transcations"
