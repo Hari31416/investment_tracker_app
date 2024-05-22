@@ -88,7 +88,6 @@ def create_scheme_level_summary(pnl_all, names_scheme_mapping, num_days=3):
     pnl_all["date"] = pd.to_datetime(pnl_all["date"])
     dates = pnl_all["date"].unique()
     dates = sorted(dates)
-    # select maximum three dates
     dates_to_take = dates[-num_days:]
 
     pnl_summary = pnl_all[pnl_all["date"].isin(dates_to_take)]
@@ -111,17 +110,15 @@ def create_scheme_level_summary(pnl_all, names_scheme_mapping, num_days=3):
     pnl_summary_pivot = pnl_summary_pivot.sort_values(
         by=pnl_summary_pivot.columns[1], ascending=False
     )
+
     float_columns = pnl_summary_pivot.columns[1 : len(dates_to_take) + 1]
     int_columns = pnl_summary_pivot.columns[len(dates_to_take) + 1 :]
     pnl_summary_pivot[int_columns] = pnl_summary_pivot[int_columns].astype(int)
     pnl_summary_pivot[float_columns] = pnl_summary_pivot[float_columns].round(2)
+
     og_columns = pnl_summary_pivot.columns
     new_columns = [col.title() for col in og_columns]
-    rename_map = dict(zip(og_columns, new_columns))
-    pnl_summary_pivot = pnl_summary_pivot.rename(columns=rename_map).T
-
-    pnl_summary_pivot.columns = pnl_summary_pivot.iloc[0]
-    pnl_summary_pivot = pnl_summary_pivot[1:]
+    pnl_summary_pivot.columns = new_columns
 
     return pnl_summary_pivot
 
@@ -459,36 +456,28 @@ def plot_pnl_and_pnl_percentage(
     )
 
 
-def _get_latest_date(all_pnl_date, date_to_match):
-    for date in all_pnl_date:
-        if date >= date_to_match:
-            return date
-    return date_to_match
+def _match_nearest_date(dates_to_match, all_dates):
+    dates_matched = []
+    for date in dates_to_match:
+        for d in all_dates:
+            if d <= date and d not in dates_matched:
+                dates_matched.append(d)
+                break
+    return dates_matched
 
 
 def create_summary(pnl, extra_deltas=None, extra_names=None):
     last_date = pnl["date"].max()
-    all_pnl_dates = pnl["date"]
-    last1d = last_date - pd.Timedelta(days=1)
-    last2d = last_date - pd.Timedelta(days=2)
-    last3d = last_date - pd.Timedelta(days=3)
-    last_week = last_date - pd.Timedelta(days=7)
-    last_15_days = last_date - pd.Timedelta(days=15)
-    last_month = last_date - pd.Timedelta(days=30)
-
-    dates_to_use = [
-        last_date,
-        last1d,
-        last2d,
-        last3d,
-        last_week,
-        last_15_days,
-        last_month,
-    ]
+    first_date = pnl["date"].min()
+    deltas = [1, 2, 3, 7, 15, 30]
     if extra_deltas:
-        dates_to_use.extend([last_date - pd.Timedelta(days=i) for i in extra_deltas])
+        deltas.extend(extra_deltas)
+    dates_to_use = [last_date - pd.Timedelta(days=i) for i in deltas]
+    dates_to_use = [last_date] + dates_to_use + [first_date]
 
-    dates_matched = [_get_latest_date(all_pnl_dates, date) for date in dates_to_use]
+    dates_matched = _match_nearest_date(
+        dates_to_use, pnl["date"].tolist()[::-1]
+    )  # date should be in descending order
     summary_df = pnl[pnl["date"].isin(dates_matched)]
     summary_df = summary_df.sort_values("date", ascending=False)
 
@@ -497,7 +486,16 @@ def create_summary(pnl, extra_deltas=None, extra_names=None):
     pnl_ = summary_df["pnl"].values
     final_pnl = pnl_[0]
     pnl_change = final_pnl - pnl_
-    date_names = ["T", "T-1", "T-2", "T-3", "Last Week", "Last 15 Days", "Last Month"]
+    date_names = [
+        "T",
+        "T-1",
+        "T-2",
+        "T-3",
+        "Last Week",
+        "Last 15 Days",
+        "Last Month",
+        "Since Start",
+    ]
 
     if extra_names:
         date_names += extra_names
@@ -525,7 +523,7 @@ def create_summary(pnl, extra_deltas=None, extra_names=None):
     float_columns = ["pnl_percentage", "pnl_change_relative_percentage"]
     summary_df[float_columns] = summary_df[float_columns].round(2)
     rename_map = {
-        "date": "Time Period",
+        "date": "Time Period (Trading Days)",
         "total_investments": "Total Investment",
         "current_values": "Current Value",
         "pnl": "PnL",
