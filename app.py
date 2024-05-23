@@ -205,6 +205,13 @@ except NoTranscation as e:
 names_scheme_mapping, schemes_names_mapping = get_all_holdings_(pnl_all)
 names = list(names_scheme_mapping.values())
 names = ["Portfolio"] + names
+latest_date = pnl["date"].max().strftime("%Y-%m-%d")
+st.markdown(
+    f"""
+    #### Data Available Till {latest_date}
+    """
+)
+
 
 sidebars = st.sidebar.selectbox(
     "Select A Mutual Fund or the Entire Portfolio",
