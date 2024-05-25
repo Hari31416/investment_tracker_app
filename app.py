@@ -56,46 +56,82 @@ name, authentication_status, username = authenticator.login(
 
 if st.session_state["authentication_status"]:
     authenticator.logout(location="sidebar")
-    st.write(f'Welcome *{st.session_state["name"]}*')
+    with st.sidebar:
+        st.write(f'Welcome *{st.session_state["name"]}*')
 
 elif st.session_state["authentication_status"] is False:
     st.error("Username/password is incorrect")
 elif st.session_state["authentication_status"] is None:
     st.warning("Please enter your username and password")
 
-# columns = st.columns([1, 1, 1])
-# # create a register user button on top right
-# register_user_btn = columns[2].button("Register User")
+
+def color_rules(val):
+    if isinstance(val, (float, int)):
+        color = "#fa7069" if val < 0 else "#8ced79"
+        return f"color: {color}"  # to adapt. background color could be managed too
+    elif isinstance(val, (pd.Timestamp, str)):
+        return "color: orange"  # to adapt. background color could be managed too
+    else:
+        return "color: grey"
 
 
-# if register_user_btn:
-#     modal = Modal(key="register_user", title="Register User")
-#     with modal.container():
-#         try:
-#             (
-#                 email_of_registered_user,
-#                 username_of_registered_user,
-#                 name_of_registered_user,
-#             ) = authenticator.register_user(pre_authorization=False)
-#             if email_of_registered_user:
-#                 st.success("User registered successfully")
-#                 save_config(config)
+def display_filtered(df, filter):
+    date_columns = df.columns[df.columns.str.contains("date", case=False)]
+    if filter:
+        columns = df.filter(like=filter).columns
+    else:
+        columns = df.columns
+    df = df[date_columns.tolist() + columns.tolist()]
 
-#         except Exception as e:
-#             st.error(e)
+    df.columns = df.columns.str.replace(filter, "", regex=False)
+    all_columns = df.columns
+    column_config = {
+        col: st.column_config.NumberColumn(col, format="%.4f", width=90, help=col)
+        for col in all_columns
+        if col not in date_columns
+    }
+    make_plot = st.checkbox("Plot", key=f"make_plot_{filter}")
+    if not make_plot:
+        st.dataframe(
+            df.style.map(color_rules),
+            column_config=column_config,
+        )
+        return
+    # st.line_chart(df)
+    from plotly.subplots import make_subplots
+    import plotly.graph_objects as go
+
+    fig = make_subplots(rows=1, cols=1, shared_xaxes=True)
+
+    for col in all_columns:
+        if col in date_columns:
+            continue
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df[col], mode="lines", name=col), row=1, col=1
+        )
+
+    filter = "PnL %" if "%" in filter else "PnL"
+    fig.update_layout(
+        title_text=filter,
+        xaxis_title=df.index.name,
+        yaxis_title=filter,
+    )
+    st.plotly_chart(fig)
 
 
 def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
     if holding is None:
         (
             summary_tab,
-            scheme_level_summary_tab,
+            scheme_level_absolute_summary_tab,
+            scheme_level_relative_summary_tab,
             pnl_tab,
             total_investment_tab,
         ) = st.tabs(
             [
                 "Summary",
-                "Scheme Level Summary",
+                "Scheme Level Absolute Summary",
+                "Scheme Level Relative Summary",
                 "PnL",
                 "Total Investment",
             ]
@@ -112,7 +148,8 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
                 "Total Investment",
             ]
         )
-        scheme_level_summary_tab = None
+        scheme_level_absolute_summary_tab = None
+        scheme_level_relative_summary_tab = None
 
     logger.info("Plotting")
 
@@ -121,29 +158,77 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
         extra_deltas = st.multiselect(
             "Select Extra Deltas in Days. This will be added to the summary",
             options=list(range(4, 700, 1)),
+            key="summary_tab",
         )
         try:
             summary_df = create_summary(pnl=pnl, extra_deltas=extra_deltas)
-            st.dataframe(summary_df.style.background_gradient(cmap=cmap, axis=0))
+            st.dataframe(summary_df.style.applymap(color_rules))
         except Exception as e:
             st.error(f"Error in creating summary: {e}")
 
-    if scheme_level_summary_tab is not None:
-        with scheme_level_summary_tab:
-            num_days = st.slider(
-                "Number of Days to look back for the scheme level summary",
-                min_value=1,
-                max_value=15,
-                value=3,
-                step=1,
-            )
-            st.write("Scheme Level Summary")
-            pnl_summary_scheme_level = create_scheme_level_summary(
+    if scheme_level_absolute_summary_tab is not None:
+        with scheme_level_absolute_summary_tab:
+            columns = st.columns([1, 1])
+            with columns[0]:
+                num_days = st.slider(
+                    "Number of Days to look back for the scheme level summary",
+                    min_value=1,
+                    max_value=15,
+                    value=3,
+                    step=1,
+                )
+            with columns[1]:
+                column_to_view = st.selectbox(
+                    "Select the column to view",
+                    [
+                        "Percentage PnL",
+                        "PnL",
+                    ],
+                    key="scheme_level_absolute_summary",
+                )
+
+            pnl_summary_scheme_level = create_scheme_level_absolute_pnl_summary(
                 pnl_all, names_scheme_mapping, num_days
             )
-            st.dataframe(
-                pnl_summary_scheme_level.style.background_gradient(cmap=cmap, axis=0)
+            if column_to_view == "PnL":
+                column_to_view = "Pnl_"
+            else:
+                column_to_view = "Pnl%_"
+            pnl_summary_scheme_level = pnl_summary_scheme_level.filter(
+                like=column_to_view
             )
+            display_filtered(pnl_summary_scheme_level, column_to_view)
+
+    if scheme_level_relative_summary_tab is not None:
+        with scheme_level_relative_summary_tab:
+            columns = st.columns([1, 1])
+            with columns[0]:
+                extra_deltas = st.multiselect(
+                    "Select Extra Deltas in Days. This will be added to the summary",
+                    options=list(range(4, 700, 1)),
+                    key="scheme_level_relative_summary_delta",
+                )
+            with columns[1]:
+                column_to_view = st.selectbox(
+                    "Select the column to view",
+                    [
+                        "Percentage Change in PnL",
+                        "Change in PnL",
+                    ],
+                    key="scheme_level_relative_summary_columns",
+                )
+
+            if column_to_view == "Change in PnL":
+                column_to_view = "change_in_pnl_"
+            else:
+                column_to_view = "change_in_pnl%_"
+
+            summary_df = create_scheme_level_relative_pnl_summary(
+                pnl=pnl_all,
+                extra_deltas=extra_deltas,
+                names_scheme_mapping=names_scheme_mapping,
+            )
+            display_filtered(summary_df, column_to_view)
 
     def create_figure_element_with_resample(func_to_use, **kwargs):
         resample_frequency = st.selectbox(
