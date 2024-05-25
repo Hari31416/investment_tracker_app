@@ -494,11 +494,12 @@ def create_summary(pnl, extra_deltas=None, extra_names=None):
         "Last Week",
         "Last 15 Days",
         "Last Month",
-        "Since Start",
     ]
 
     if extra_names:
         date_names += extra_names
+    date_names.append("Since Start")  # add after extra names
+
     if len(dates_to_use) != len(date_names):
         new_names_to_add = len(dates_to_use) - len(date_names)
         date_names += [f"Last {extra_deltas[i]} Days" for i in range(new_names_to_add)]
