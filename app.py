@@ -18,24 +18,8 @@ st.set_page_config(
     page_icon="🧊",
     initial_sidebar_state="expanded",
 )
-# center the page
-st.markdown(
-    """
-    <style>
-    body {
-        margin: 0;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 st.title("Mutual Fund Portfolio Analysis")
-
 
 @st.cache_data
 def create_portfolio(username, date):
@@ -202,16 +186,45 @@ except NoTranscation as e:
     st.error(error_text)
     st.stop()
 
+# create a container with half height
+container = st.container(border=False)
+with container:
+    rows1 = st.columns(1)
+    with rows1[0]:
+        overall_pnl = int(pnl.iloc[-1]["pnl"])
+        overall_pnl_percentage = round(pnl.iloc[-1]["pnl_percentage"], 2)
+        total_invested = pnl.iloc[-1]["total_invested"]
+        current_value = pnl.iloc[-1]["current_value"]
+        overall_pnl_color = "#fa7069" if overall_pnl < 0 else "#8ced79"
+        overall_pnl_percentage_color = (
+            "#fa7069" if overall_pnl_percentage < 0 else "#8ced79"
+        )
+        st.markdown(
+            f"""
+            <h4 style="color:{overall_pnl_color}">₹{overall_pnl} &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;{overall_pnl_percentage}%</h4>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"""
+            <h6 style="color:grey">Total Invested: ₹{int(total_invested)}</h6>
+            <h6 style="color:grey"> Current Value: ₹{int(current_value)}</h6>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 names_scheme_mapping, schemes_names_mapping = get_all_holdings_(pnl_all)
 names = list(names_scheme_mapping.values())
 names = ["Portfolio"] + names
 latest_date = pnl["date"].max().strftime("%Y-%m-%d")
-st.markdown(
-    f"""
-    #### Data Available Till {latest_date}
-    """
-)
 
+with st.sidebar:
+    st.markdown(
+        f"""
+        Data Available Till *{latest_date}*
+        """
+    )
 
 sidebars = st.sidebar.selectbox(
     "Select A Mutual Fund or the Entire Portfolio",
