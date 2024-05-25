@@ -75,7 +75,10 @@ def get_all_holdings(pnl_all):
     for scheme in schemes:
         matched = list(filter(lambda x: x["scheme_code"] == scheme, mapping))
         if matched:
-            names.append(matched[0]["symbol"])
+            symbol = matched[0]["symbol"]
+            short_name = matched[0]["short_name"]
+            short_name = short_name or symbol
+            names.append(short_name)
         else:
             names.append("Unknown")
 
