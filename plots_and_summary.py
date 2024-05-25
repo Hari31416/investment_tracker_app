@@ -1,6 +1,7 @@
 from typing import List, Dict
 from collections import OrderedDict
 import pandas as pd
+import numpy as np
 from pymongo import MongoClient
 from urllib.parse import quote_plus
 import env as env
@@ -87,7 +88,19 @@ def get_all_holdings(pnl_all):
     return names_scheme_mapping, schemes_names_mapping
 
 
-def create_scheme_level_summary(pnl_all, names_scheme_mapping, num_days=3):
+def format_numbers(df, int_columns, float_round_digits=2):
+    number_columns = df.select_dtypes(include=[np.number]).columns
+    logger.debug(f"Number columns: {number_columns}")
+    logger.debug(f"Int columns: {int_columns}")
+    for column in number_columns:
+        if column in int_columns:
+            df[column] = df[column].astype(int)
+        else:
+            df[column] = df[column].round(float_round_digits)
+    return df
+
+
+def create_scheme_level_absolute_pnl_summary(pnl_all, names_scheme_mapping, num_days=3):
     pnl_all["date"] = pd.to_datetime(pnl_all["date"])
     dates = pnl_all["date"].unique()
     dates = sorted(dates)
@@ -98,11 +111,9 @@ def create_scheme_level_summary(pnl_all, names_scheme_mapping, num_days=3):
         names_scheme_mapping
     )
     pnl_summary = pnl_summary.sort_index(ascending=False)
-
+    pnl_summary.rename(columns={"pnl_percentage": "pnl%"}, inplace=True)
     pnl_summary_pivot = (
-        pnl_summary.pivot(
-            index="scheme_name", columns="date", values=["pnl", "pnl_percentage"]
-        )
+        pnl_summary.pivot(index="scheme_name", columns="date", values=["pnl", "pnl%"])
         .fillna(0)
         .reset_index()
     )
@@ -114,16 +125,111 @@ def create_scheme_level_summary(pnl_all, names_scheme_mapping, num_days=3):
         by=pnl_summary_pivot.columns[1], ascending=False
     )
 
-    float_columns = pnl_summary_pivot.columns[1 : len(dates_to_take) + 1]
-    int_columns = pnl_summary_pivot.columns[len(dates_to_take) + 1 :]
-    pnl_summary_pivot[int_columns] = pnl_summary_pivot[int_columns].astype(int)
-    pnl_summary_pivot[float_columns] = pnl_summary_pivot[float_columns].round(2)
-
     og_columns = pnl_summary_pivot.columns
     new_columns = [col.title() for col in og_columns]
     pnl_summary_pivot.columns = new_columns
+    pnl_summary_pivot.set_index("Scheme", inplace=True)
+
+    for col in pnl_summary_pivot.columns:
+        pnl_summary_pivot[col] = pnl_summary_pivot[col].astype(float)
+
+    int_columns = [col for col in pnl_summary_pivot.columns if "Pnl_" in col]
+    pnl_summary_pivot = format_numbers(
+        pnl_summary_pivot, int_columns, float_round_digits=4
+    )
 
     return pnl_summary_pivot
+
+
+def create_dates_and_filtered_df(pnl, extra_deltas=None, extra_names=None):
+    """Calculates the date required for a given dates to create a summary and returns the filtered dataframe"""
+    last_date = pnl["date"].max()
+    first_date = pnl["date"].min()
+    deltas = [1, 2, 3, 7, 15, 30]
+    if extra_deltas:
+        deltas.extend(extra_deltas)
+    dates_to_use = [last_date - pd.Timedelta(days=i) for i in deltas]
+    dates_to_use = [last_date] + dates_to_use + [first_date]
+
+    dates_matched = _match_nearest_date(
+        dates_to_use, pnl["date"].tolist()[::-1]
+    )  # date should be in descending order
+    summary_df = pnl[pnl["date"].isin(dates_matched)]
+    summary_df = summary_df.sort_values("date", ascending=False)
+    date_names = [
+        "T",
+        "T-1",
+        "T-2",
+        "T-3",
+        "Last Week",
+        "Last 15 Days",
+        "Last Month",
+    ]
+
+    if extra_names:
+        date_names += extra_names
+
+    if len(dates_to_use) != len(date_names):
+        new_names_to_add = len(dates_to_use) - len(date_names) - 1
+        date_names += [f"Last {extra_deltas[i]} Days" for i in range(new_names_to_add)]
+    date_names.append("Since Start")  # add after extra names
+    mapping = OrderedDict(zip(dates_matched, date_names))
+    dates_matched = sorted(dates_matched, reverse=True)
+    date_names = [mapping[date] for date in dates_matched]
+    return date_names, summary_df
+
+
+def create_scheme_level_relative_pnl_summary(
+    pnl, names_scheme_mapping, extra_deltas=None, extra_names=None
+):
+    date_names, summary_df = create_dates_and_filtered_df(
+        pnl, extra_deltas, extra_names
+    )
+
+    total_investments = (
+        summary_df.groupby(["scheme_code", "date"])[["total_invested"]]
+        .sum()
+        .reset_index()
+    )
+    total_investments = total_investments.drop_duplicates(
+        subset=["scheme_code"], keep="last"
+    )
+    total_investments.drop("date", axis=1, inplace=True)
+    pnl_all_ = summary_df.groupby(["scheme_code", "date"])[["pnl"]].sum().reset_index()
+    current_pnl = pnl_all_.drop_duplicates(subset=["scheme_code"], keep="last")
+
+    current_pnl = current_pnl.rename(columns={"pnl": "current_pnl"})
+    current_pnl = current_pnl[["scheme_code", "current_pnl"]]
+    pnl_all_ = pd.merge(pnl_all_, current_pnl, on=["scheme_code"], how="left")
+    pnl_all_ = pd.merge(pnl_all_, total_investments, on=["scheme_code"], how="left")
+    pnl_all_["change_in_pnl"] = pnl_all_["current_pnl"] - pnl_all_["pnl"]
+    pnl_all_["change_in_pnl%"] = (
+        pnl_all_["change_in_pnl"] / pnl_all_["total_invested"]
+    ) * 100
+    pnl_all_["change_in_pnl%"].replace(np.inf, 100, inplace=True),
+    pnl_all_["change_in_pnl%"].replace(-np.inf, -100, inplace=True)
+
+    final_df = (
+        pnl_all_.pivot(
+            columns="scheme_code",
+            index="date",
+            values=["change_in_pnl%", "change_in_pnl"],
+        )
+        .bfill()
+        .sort_index(ascending=False)
+    )
+    final_df.columns = final_df.columns.to_flat_index()
+    columns = [f"{col[0]}_{names_scheme_mapping[col[1]]}" for col in final_df.columns]
+    final_df.columns = columns
+    final_df = final_df.reset_index()
+    final_df.rename(columns={"date": "Date"}, inplace=True)
+    final_df["Date"] = final_df["Date"].dt.strftime("%Y-%m-%d")
+    final_df.index = date_names
+    int_columns = [col for col in final_df.columns if "change_in_pnl_" in col]
+    final_df = format_numbers(final_df, int_columns, float_round_digits=4)
+    final_df = final_df.rename(columns={"index": "date"})
+    final_df.index.name = "Date"
+    return final_df
 
 
 label_map = {
@@ -470,45 +576,19 @@ def _match_nearest_date(dates_to_match, all_dates):
 
 
 def create_summary(pnl, extra_deltas=None, extra_names=None):
-    last_date = pnl["date"].max()
-    first_date = pnl["date"].min()
-    deltas = [1, 2, 3, 7, 15, 30]
-    if extra_deltas:
-        deltas.extend(extra_deltas)
-    dates_to_use = [last_date - pd.Timedelta(days=i) for i in deltas]
-    dates_to_use = [last_date] + dates_to_use + [first_date]
-
-    dates_matched = _match_nearest_date(
-        dates_to_use, pnl["date"].tolist()[::-1]
-    )  # date should be in descending order
-    summary_df = pnl[pnl["date"].isin(dates_matched)]
-    summary_df = summary_df.sort_values("date", ascending=False)
+    date_names, summary_df = create_dates_and_filtered_df(
+        pnl, extra_deltas=extra_deltas, extra_names=extra_names
+    )
 
     total_investments = summary_df["total_invested"].values.tolist()
     current_values = summary_df["current_value"].values.tolist()
     pnl_ = summary_df["pnl"].values
     final_pnl = pnl_[0]
     pnl_change = final_pnl - pnl_
-    date_names = [
-        "T",
-        "T-1",
-        "T-2",
-        "T-3",
-        "Last Week",
-        "Last 15 Days",
-        "Last Month",
-    ]
-
-    if extra_names:
-        date_names += extra_names
-    date_names.append("Since Start")  # add after extra names
-
-    if len(dates_to_use) != len(date_names):
-        new_names_to_add = len(dates_to_use) - len(date_names)
-        date_names += [f"Last {extra_deltas[i]} Days" for i in range(new_names_to_add)]
 
     summary_dict = {
         "date": date_names,
+        "date (og)": summary_df["date"].values,
         "total_investments": total_investments,
         "current_values": current_values,
         "pnl_change_relative": pnl_change,
@@ -528,6 +608,7 @@ def create_summary(pnl, extra_deltas=None, extra_names=None):
     summary_df[float_columns] = summary_df[float_columns].round(2)
     rename_map = {
         "date": "Time Period (Trading Days)",
+        "date (og)": "Date",
         "total_investments": "Total Investment",
         "current_values": "Current Value",
         "pnl": "PnL",
@@ -536,4 +617,5 @@ def create_summary(pnl, extra_deltas=None, extra_names=None):
         "pnl_change_relative_percentage": "PnL Change %",
     }
     summary_df = summary_df.rename(columns=rename_map)
+    summary_df["Date"] = summary_df["Date"].dt.strftime("%Y-%m-%d")
     return summary_df
