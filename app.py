@@ -15,8 +15,8 @@ logger = get_simple_logger("app")
 st.set_page_config(
     layout="wide",
     page_title="Mutual Fund Portfolio Analysis",
-    page_icon="🧊",
-    initial_sidebar_state="expanded",
+    page_icon="📈",
+    initial_sidebar_state="auto",
 )
 
 st.title("Mutual Fund Portfolio Analysis")
@@ -270,6 +270,18 @@ except NoTranscation as e:
     error_text = f"User {username} does not have any transcations"
     st.error(error_text)
     st.stop()
+
+# add a refresh button
+refresh_btn = st.sidebar.button("Refresh Data", key="refresh_data")
+if refresh_btn:
+    # create a random date
+    month = np.random.randint(1, 12)
+    day = np.random.randint(1, 28)
+    year = np.random.randint(2010, 2024)
+    date = datetime(year, month, day).strftime("%Y-%m-%d")
+    pnl, portfolio = create_portfolio(username, date)
+    pnl_all = portfolio.pnl.copy()
+    pnl = pnl.copy()
 
 # create a container with half height
 container = st.container(border=False)

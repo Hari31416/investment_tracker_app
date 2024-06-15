@@ -61,11 +61,14 @@ def get_transcations(client, username):
     return transcations["transactions"]
 
 
-def create_mapping():
+def create_mapping(as_df=False):
     client = get_mongo_client()
     db = client["funds"]
     mapping_c = db["mappings"]
     mapping = mapping_c.find_one()["isin_to_scheme_code"]
+    if as_df:
+        mapping = pd.DataFrame(mapping)
+
     return mapping
 
 
