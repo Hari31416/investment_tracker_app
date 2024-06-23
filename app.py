@@ -3,6 +3,7 @@ from streamlit_modal import Modal
 import streamlit_authenticator as stauth
 import env as env
 from datetime import datetime
+import time
 
 from mutual_funds import Portfolio
 from plots_and_summary import *
@@ -282,6 +283,36 @@ if refresh_btn:
     pnl, portfolio = create_portfolio(username, date)
     pnl_all = portfolio.pnl.copy()
     pnl = pnl.copy()
+
+update_transcations_btn = st.sidebar.button(
+    "Update Transcations", key="update_transcations"
+)
+modal = Modal("Update Transcations", key="update_transcations_modal")
+
+if update_transcations_btn:
+    modal.open()
+
+if modal.is_open():
+    with modal.container():
+        st.markdown(
+            "Upload a file with the following columns: date, scheme_code, amount, units, nav, type. The file can be downloaded from Zerodha by following the [link](https://console.zerodha.com/reports/tradebook).",
+            unsafe_allow_html=True,
+        )
+        file_picker = st.file_uploader("Upload a file", type=["csv", "xlsx"])
+
+        if file_picker is not None:
+            logger.info("Updating Transcations")
+            try:
+                update_transcations(file_picker, username, debug=False)
+                st.success(
+                    "Transcations Updated Successfully. Use the refresh button to see the updated data."
+                )
+
+                time.sleep(2)
+                # close the modal
+                modal.close()
+            except Exception as e:
+                st.error(f"Error in updating transcations: {e}")
 
 # create a container with half height
 container = st.container(border=False)

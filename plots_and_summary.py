@@ -72,6 +72,76 @@ def create_mapping(as_df=False):
     return mapping
 
 
+def _one_transaction(transcation):
+    units = transcation["quantity"]
+    average_nav = transcation["price"]
+    date = transcation["trade_date"]
+    trade_type = transcation["trade_type"]
+    if trade_type == "buy":
+        date_column = "purchase_date"
+    else:
+        date_column = "sale_date"
+
+    return {"units": units, "average_nav": average_nav, date_column: date}
+
+
+def convert_one_trade(df):
+    code = df["scheme_code"].values[0]
+    code = int(code)
+    isin = df["isin"].values[0]
+    buys = df[df["trade_type"] == "buy"]
+    sells = df[df["trade_type"] == "sell"]
+
+    purchase_history = buys.apply(_one_transaction, axis=1).to_list()
+    sale_history = sells.apply(_one_transaction, axis=1).to_list()
+    final_dict = {
+        "scheme_code": code,
+        "isin": isin,
+        "purchase_history": purchase_history,
+        "sale_history": sale_history,
+    }
+    return final_dict
+
+
+def update_transcations(tradebook_file, username, debug=True):
+    client = get_mongo_client()
+    mapping = create_mapping(as_df=True)
+    tradebook = pd.read_csv(tradebook_file)
+    # remove HDFC Liquid Fund
+    tradebook = tradebook[tradebook["isin"] != "INF179KB1HP9"]
+    tradebook = tradebook[
+        ["symbol", "isin", "trade_date", "trade_type", "quantity", "price"]
+    ]
+    tradebook = pd.merge(
+        tradebook, mapping[["isin", "scheme_code"]], on="isin", how="left"
+    )
+    if tradebook["scheme_code"].isna().sum():
+        not_found_schemes = tradebook[tradebook["scheme_code"].isna()][
+            "symbol"
+        ].unique()
+        m = f"Schemes not found: {not_found_schemes}"
+        logger.error(m)
+        raise ValueError(m)
+
+    codes = tradebook["scheme_code"].unique()
+    final_list = []
+    for code in codes:
+        df = tradebook[tradebook["scheme_code"] == code]
+        final_list.append(convert_one_trade(df))
+
+    final_list = {"username": username, "transactions": final_list}
+    logger.info("Final list created")
+    if debug:
+        logger.info("Debug is on, not updating the database")
+        return final_list
+
+    db = client["funds"]
+    collection_name = "transactions"
+    collection = db[collection_name]
+
+    collection.update_one({"username": username}, {"$set": final_list})
+
+
 def get_all_holdings(pnl_all):
     mapping = create_mapping()
     schemes = pnl_all["scheme_code"].unique().tolist()
@@ -97,7 +167,11 @@ def format_numbers(df, int_columns, float_round_digits=2):
     logger.debug(f"Int columns: {int_columns}")
     for column in number_columns:
         if column in int_columns:
-            df[column] = df[column].astype(int)
+            try:
+                df[column] = df[column].astype(int)
+            except ValueError:
+                logger.error(f"Could not convert {column} to int. Dropping Column")
+                df.drop(column, axis=1, inplace=True)
         else:
             df[column] = df[column].round(float_round_digits)
     return df
