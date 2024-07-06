@@ -554,6 +554,25 @@ class Portfolio:
         avg_nav = np.array([x.average_nav(max_date) for x in self.holdings])
         return np.sum(units * avg_nav) / np.sum(units)
 
+    def filter_for_wrong_holdings(self, pnl):
+        """Filter the pnl dataframe for wrong holdings. A wrong holding is a holding where the number of holdings changes by more than 50% in a single day even though there are no sell transactions. The root cause of this is not yet known, this function is just a workaround to remove such rows."""
+        pnl["num_holdings"] = pnl["scheme_code"].apply(lambda x: len(eval(x)))
+        to_drop = pnl[-pnl["num_holdings"].diff(1) > 0.5 * pnl["num_holdings"]]
+        self.logger.info(f"Found {len(to_drop)} rows with potential wrong holdings")
+        to_drop_dates = to_drop["date"].values
+        sell_dates = self.transaction_dates["sell_dates"]
+        to_drop_dates_final = []
+        for date in to_drop_dates:
+            if date not in sell_dates:
+                to_drop_dates_final.append(date)
+        to_drop = to_drop[to_drop["date"].isin(to_drop_dates_final)]
+        if len(to_drop) > 0:
+            self.logger.info(
+                f"Found {len(to_drop)} rows with wrong holdings. Dropping them."
+            )
+            pnl = pnl[~pnl["date"].isin(to_drop["date"].values)]
+        return pnl
+
     def get_pnl_timeseries(self) -> pd.DataFrame:
         """Calculate the pnl timeseries for the entire `Portfolio`. Returns a dataframe with date, total invested amount, current value, pnl and pnl percentage."""
         pnls = []
@@ -580,6 +599,7 @@ class Portfolio:
         )  # remove rows with negative invested amount
         pnl["pnl"] = pnl["current_value"] - pnl["total_invested"]
         pnl["pnl_percentage"] = pnl["pnl"] / pnl["total_invested"] * 100
+        pnl = self.filter_for_wrong_holdings(pnl)
         return pnl
 
     @property
