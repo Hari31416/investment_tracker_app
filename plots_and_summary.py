@@ -306,6 +306,8 @@ def create_scheme_level_relative_pnl_summary(
     final_df = format_numbers(final_df, int_columns, float_round_digits=4)
     final_df = final_df.rename(columns={"index": "date"})
     final_df.index.name = "Date"
+    # remove the first row, which is the current date
+    final_df = final_df.iloc[1:]
     return final_df
 
 
