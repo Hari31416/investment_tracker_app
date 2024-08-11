@@ -35,8 +35,8 @@ def get_mongo_client():
 
 def load_config():
     client = get_mongo_client()
-    db = client["funds"]
-    collection = db["users"]
+    db = client[env.MONGO_DB]
+    collection = db[env.MONGO_USER_COLLECTION]
     config = collection.find_one()
     if not config:
         raise Exception("No config found")
@@ -46,25 +46,25 @@ def load_config():
 
 def save_config(config):
     client = get_mongo_client()
-    db = client["funds"]
-    collection = db["users"]
+    db = client[env.MONGO_DB]
+    collection = db[env.MONGO_USER_COLLECTION]
     collection.update_one({}, {"$set": config})
     logger.info("Config saved")
 
 
 def get_transcations(client, username):
-    db = client["funds"]
-    transcations = db["transactions"]
+    db = client[env.MONGO_DB]
+    transcations = db[env.MONGO_TRANSACTIONS_COLLECTION]
     transcations = transcations.find_one({"username": username})
     if not transcations:
         raise NoTranscation(f"No transcations found for {username}")
-    return transcations["transactions"]
+    return transcations[env.MONGO_TRANSACTIONS_COLLECTION]
 
 
 def create_mapping(as_df=False):
     client = get_mongo_client()
-    db = client["funds"]
-    mapping_c = db["mappings"]
+    db = client[env.MONGO_DB]
+    mapping_c = db[env.MONGO_MAPPING_COLLECTION]
     mapping = mapping_c.find_one()["isin_to_scheme_code"]
     if as_df:
         mapping = pd.DataFrame(mapping)
@@ -129,17 +129,22 @@ def update_transcations(tradebook_file, username, debug=True):
         df = tradebook[tradebook["scheme_code"] == code]
         final_list.append(convert_one_trade(df))
 
-    final_list = {"username": username, "transactions": final_list}
+    final_list = {"username": username, env.MONGO_TRANSCATIONS_COLLECTION: final_list}
     logger.info("Final list created")
     if debug:
         logger.info("Debug is on, not updating the database")
         return final_list
 
-    db = client["funds"]
-    collection_name = "transactions"
+    db = client[env.MONGO_DB]
+    collection_name = env.MONGO_TRANSCATIONS_COLLECTION
     collection = db[collection_name]
-
-    collection.update_one({"username": username}, {"$set": final_list})
+    if collection.find_one({"username": username}) is None:
+        logger.info(f"Inserting transcations for user {username}")
+        # new user, add new item
+        collection.insert_one(final_list)
+    else:
+        logger.info(f"Updating transcations for user {username}")
+        collection.update_one({"username": username}, {"$set": final_list})
 
 
 def get_all_holdings(pnl_all):
