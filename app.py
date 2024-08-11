@@ -22,6 +22,7 @@ st.set_page_config(
 
 st.title("Mutual Fund Portfolio Analysis")
 
+
 @st.cache_data
 def create_portfolio(username, date):
     client = get_mongo_client()
@@ -58,12 +59,73 @@ name, authentication_status, username = authenticator.login(
 if st.session_state["authentication_status"]:
     authenticator.logout(location="sidebar")
     with st.sidebar:
+        reset_btn = st.button("Reset Password", key="reset-password")
+    with st.sidebar:
         st.write(f'Welcome *{st.session_state["name"]}*')
-
 elif st.session_state["authentication_status"] is False:
+    reset_btn = False
     st.error("Username/password is incorrect")
 elif st.session_state["authentication_status"] is None:
+    reset_btn = False
     st.warning("Please enter your username and password")
+
+
+def reset_password():
+    try:
+        if authenticator.reset_password(st.session_state["username"]):
+            save_config(config=config)
+            st.success("Password modified successfully")
+    except Exception as e:
+        st.error(e)
+
+
+def register_new_user():
+    try:
+        (
+            email_of_registered_user,
+            _,
+            name_of_registered_user,
+        ) = authenticator.register_user(pre_authorization=False)
+        if email_of_registered_user:
+            save_config(config=config)
+            st.success(f"User {name_of_registered_user} registered successfully")
+
+    except Exception as e:
+        st.error(e)
+
+
+# Reset password
+reset_password_modal = Modal("Reset Password", key="reset-password-modal")
+if reset_btn:
+    reset_password_modal.open()
+if reset_password_modal.is_open():
+    with reset_password_modal.container():
+        st.write("Please enter the details below")
+        reset_password()
+        st.cache_data.clear()
+        config = load_config_()
+        time.sleep(2)
+        # close the modal
+        reset_password_modal.close()
+
+# Register new
+if st.session_state["authentication_status"]:
+    register_btn = False
+else:
+    st.markdown("**Add a new user by clicking the button below:**")
+    register_btn = st.button("Register New User")
+register_modal = Modal("Register New User", key="register-new-user-modal")
+if register_btn:
+    register_modal.open()
+if register_modal.is_open():
+    with register_modal.container():
+        st.write("Please enter the details below")
+        register_new_user()
+        st.cache_data.clear()
+        config = load_config_()
+        time.sleep(2)
+        # close the modal
+        register_modal.close()
 
 
 def color_rules(val):
@@ -260,6 +322,7 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
         )
 
 
+no_transcation = True
 try:
     if username is None:
         st.stop()
@@ -267,14 +330,14 @@ try:
     pnl, portfolio = create_portfolio(username, date)
     pnl_all = portfolio.pnl.copy()
     pnl = pnl.copy()
+    no_transcation = False
 except NoTranscation as e:
-    error_text = f"User {username} does not have any transcations"
+    error_text = f"User {username} does not have any transcations. Upload the transcation data using the Update Transcations"
     st.error(error_text)
-    st.stop()
 
 # add a refresh button
 refresh_btn = st.sidebar.button("Refresh Data", key="refresh_data")
-if refresh_btn:
+if refresh_btn and not no_transcation:
     # create a random date
     month = np.random.randint(1, 12)
     day = np.random.randint(1, 28)
@@ -314,6 +377,8 @@ if modal.is_open():
             except Exception as e:
                 st.error(f"Error in updating transcations: {e}")
 
+if no_transcation:
+    st.stop()
 # create a container with half height
 container = st.container(border=False)
 with container:
