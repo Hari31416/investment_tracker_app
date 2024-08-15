@@ -26,9 +26,9 @@ st.title("Mutual Fund Portfolio Analysis")
 @st.cache_data
 def create_portfolio(username, date):
     client = get_mongo_client()
-    transactions = get_transcations(client, username)
+    transactions = get_transactions(client, username)
 
-    portfolio = Portfolio(transcations=transactions)
+    portfolio = Portfolio(transactions=transactions)
     pnl = portfolio.get_pnl_timeseries()
     return pnl, portfolio
 
@@ -318,7 +318,7 @@ def plot_all(pnl, holding=None, names_scheme_mapping=None, pnl_all=None):
         )
 
 
-no_transcation = True
+no_transaction = True
 try:
     if username is None:
         st.stop()
@@ -326,14 +326,14 @@ try:
     pnl, portfolio = create_portfolio(username, date)
     pnl_all = portfolio.pnl.copy()
     pnl = pnl.copy()
-    no_transcation = False
-except NoTranscation as e:
-    error_text = f"User {username} does not have any transcations. Upload the transcation data using the Update Transcations"
+    no_transaction = False
+except NoTransactions as e:
+    error_text = f"User {username} does not have any transactions. Upload the transaction data using the Update Transactions"
     st.error(error_text)
 
 # add a refresh button
 refresh_btn = st.sidebar.button("Refresh Data", key="refresh_data")
-if refresh_btn and not no_transcation:
+if refresh_btn and not no_transaction:
     # create a random date
     month = np.random.randint(1, 12)
     day = np.random.randint(1, 28)
@@ -343,12 +343,12 @@ if refresh_btn and not no_transcation:
     pnl_all = portfolio.pnl.copy()
     pnl = pnl.copy()
 
-update_transcations_btn = st.sidebar.button(
-    "Update Transcations", key="update_transcations"
+update_transactions_btn = st.sidebar.button(
+    "Update Transactions", key="update_transactions"
 )
-modal = Modal("Update Transcations", key="update_transcations_modal")
+modal = Modal("Update Transactions", key="update_transactions_modal")
 
-if update_transcations_btn:
+if update_transactions_btn:
     modal.open()
 
 if modal.is_open():
@@ -360,20 +360,20 @@ if modal.is_open():
         file_picker = st.file_uploader("Upload a file", type=["csv", "xlsx"])
 
         if file_picker is not None:
-            logger.info("Updating Transcations")
+            logger.info("Updating Transactions")
             try:
-                update_transcations(file_picker, username, debug=False)
+                update_transactions(file_picker, username, debug=False)
                 st.success(
-                    "Transcations Updated Successfully. Data will be refreshed automatically"
+                    "Transactions Updated Successfully. Data will be refreshed automatically"
                 )
 
                 time.sleep(2)
                 # close the modal
                 modal.close()
             except Exception as e:
-                st.error(f"Error in updating transcations: {e}")
+                st.error(f"Error in updating transactions: {e}")
 
-if no_transcation:
+if no_transaction:
     st.stop()
 # create a container with half height
 container = st.container(border=False)

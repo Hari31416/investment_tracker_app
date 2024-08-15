@@ -21,7 +21,7 @@ from mutual_funds import get_simple_logger
 logger = get_simple_logger("plots_and_summary")
 
 
-class NoTranscation(Exception):
+class NoTransactions(Exception):
     pass
 
 
@@ -52,13 +52,13 @@ def save_config(config):
     logger.info("Config saved")
 
 
-def get_transcations(client, username):
+def get_transactions(client, username):
     db = client[env.MONGO_DB]
-    transcations = db[env.MONGO_TRANSACTIONS_COLLECTION]
-    transcations = transcations.find_one({"username": username})
-    if not transcations:
-        raise NoTranscation(f"No transcations found for {username}")
-    return transcations[env.MONGO_TRANSACTIONS_COLLECTION]
+    transactions = db[env.MONGO_TRANSACTIONS_COLLECTION]
+    transactions = transactions.find_one({"username": username})
+    if not transactions:
+        raise NoTransactions(f"No transactions found for {username}")
+    return transactions[env.MONGO_TRANSACTIONS_COLLECTION]
 
 
 def create_mapping(as_df=False):
@@ -72,11 +72,11 @@ def create_mapping(as_df=False):
     return mapping
 
 
-def _one_transaction(transcation):
-    units = transcation["quantity"]
-    average_nav = transcation["price"]
-    date = transcation["trade_date"]
-    trade_type = transcation["trade_type"]
+def _one_transaction(transaction):
+    units = transaction["quantity"]
+    average_nav = transaction["price"]
+    date = transaction["trade_date"]
+    trade_type = transaction["trade_type"]
     if trade_type == "buy":
         date_column = "purchase_date"
     else:
@@ -103,7 +103,7 @@ def convert_one_trade(df):
     return final_dict
 
 
-def update_transcations(tradebook_file, username, debug=True):
+def update_transactions(tradebook_file, username, debug=True):
     client = get_mongo_client()
     mapping = create_mapping(as_df=True)
     tradebook = pd.read_csv(tradebook_file)
@@ -139,11 +139,11 @@ def update_transcations(tradebook_file, username, debug=True):
     collection_name = env.MONGO_TRANSACTIONS_COLLECTION
     collection = db[collection_name]
     if collection.find_one({"username": username}) is None:
-        logger.info(f"Inserting transcations for user {username}")
+        logger.info(f"Inserting transactions for user {username}")
         # new user, add new item
         collection.insert_one(final_list)
     else:
-        logger.info(f"Updating transcations for user {username}")
+        logger.info(f"Updating transactions for user {username}")
         collection.update_one({"username": username}, {"$set": final_list})
 
 
@@ -329,7 +329,7 @@ def plot_single_column_with_date(
     transaction_dates: Dict[str, List[str]],
     column_name: str,
     title: str,
-    add_transcations: bool = True,
+    add_transactions: bool = True,
     resample_frequency: str = None,
 ):
     """Plot a single column with date on the x-axis
@@ -344,7 +344,7 @@ def plot_single_column_with_date(
         The column to plot
     title : str
         The title of the plot
-    add_transcations : bool, optional
+    add_transactions : bool, optional
         Whether to add the purchase and sell dates as dots on the plot, by default True
     resample_frequency : str, optional
         The frequency to resample the data to, by default None. If None, the data is not resampled
@@ -373,7 +373,7 @@ def plot_single_column_with_date(
     fig.update_xaxes(title_text="Date")
     # set the y-axis label
     fig.update_yaxes(title_text=yaxis_label)
-    if not add_transcations or resample_frequency:
+    if not add_transactions or resample_frequency:
         return fig
 
     purchase_dates = transaction_dates["purchase_dates"]
@@ -414,7 +414,7 @@ def plot_two_columns_with_date(
     column_name1: str,
     column_name2: str,
     title: str,
-    add_transcations: bool = True,
+    add_transactions: bool = True,
     resample_frequency: str = None,
 ):
     """Plot two columns with date on the x-axis
@@ -431,7 +431,7 @@ def plot_two_columns_with_date(
         The second column to plot
     title : str
         The title of the plot
-    add_transcations : bool, optional
+    add_transactions : bool, optional
         Whether to add the purchase and sell dates as dots on the plot, by default True
     resample_frequency : str, optional
         The frequency to resample the data to, by default None. If None, the data is not resampled
@@ -467,7 +467,7 @@ def plot_two_columns_with_date(
     # set the y-axis label
     fig.update_yaxes(title_text=yaxis_label1, secondary_y=False)
     fig.update_yaxes(title_text=yaxis_label2, secondary_y=True)
-    if not add_transcations:
+    if not add_transactions:
         return fig
 
     purchase_dates = transaction_dates["purchase_dates"]

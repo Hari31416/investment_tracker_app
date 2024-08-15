@@ -22,7 +22,7 @@ Note that this is a web app and is dependant on having a mongoDB database. We ca
 
 ### Collections Required
 
-The app requires three collections in the database. The first collection is `users` which will store the user information. The second collection is `transcations` which will store the mutual fund transcations. The third is a mapping collection `mapping` that will store the mapping between ISIN code and `scheme_code` used in the [mfapi](https://www.mfapi.in/).
+The app requires three collections in the database. The first collection is `users` which will store the user information. The second collection is `transactions` which will store the mutual fund transactions. The third is a mapping collection `mapping` that will store the mapping between ISIN code and `scheme_code` used in the [mfapi](https://www.mfapi.in/).
 
 #### `users` Collection
 
@@ -48,7 +48,7 @@ The `credentials` field will store the username and password and other informati
 
 #### `transactions` Collection
 
-This database contains the transcations of the mutual funds. The schema for the `transactions` collection is as follows:
+This database contains the transactions of the mutual funds. The schema for the `transactions` collection is as follows:
 
 ```json
 {
@@ -156,7 +156,7 @@ An overview of the features supported by the app are:
 1. **Add New User**: We can register new users and create a new account. The user can provide their name, email address, and password to create a new account.
 2. **Login**: Next, the user can log in to the app using their email address and password.
 3. **Update Password**: The user can update their password by providing their old password and new password.
-4. **Update Transcations Using Tradebook**: The transcations can be updated using the tradebook downloaded from Zerodha. If other broker is used, make sure that the tradebook has the following columns:
+4. **Update Transactions Using Tradebook**: The transactions can be updated using the tradebook downloaded from Zerodha. If other broker is used, make sure that the tradebook has the following columns:
    `["symbol", "isin", "trade_date", "trade_type", "quantity", "price"]`
 
 ### Login Related Features
@@ -179,11 +179,11 @@ One can use the `Update Password` button to update their password. This will ope
 
 ![Update Password](images/reset_password_modal.png)
 
-### Update Transcations Using Tradebook
+### Update Transactions Using Tradebook
 
-To update the transcations, we need to click on the `Update Transcations` button in the sidebar. This will open a modal where the user can upload the tradebook.
+To update the transactions, we need to click on the `Update Transactions` button in the sidebar. This will open a modal where the user can upload the tradebook.
 
-![Update Transcations](images/update_transactions_modal.png)
+![Update Transactions](images/update_transactions_modal.png)
 
 ## Dashboards and Tables
 

@@ -127,8 +127,8 @@ class TransactionHistory:
         self.logger = logger or get_simple_logger(self.__class__.__name__)
 
     def __str__(self) -> str:
-        num_transcations = len(self.transaction_history)
-        return f"Transaction history with {num_transcations} transactions"
+        num_transactions = len(self.transaction_history)
+        return f"Transaction history with {num_transactions} transactions"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -172,7 +172,7 @@ class TransactionHistory:
             self.max_date = datetime.strptime(self.max_date, "%Y-%m-%d")
 
         t = [x for x in self.transaction_history_og if x.date_ <= self.max_date]
-        self.logger.debug(f"{len(t)} transcations filtered for date: {self.max_date}")
+        self.logger.debug(f"{len(t)} transactions filtered for date: {self.max_date}")
         return t
 
     @property
@@ -248,7 +248,7 @@ class TransactionHistory:
             self.transaction_history_og, key=lambda x: x.date_, reverse=reverse
         )
 
-    def create_transcations_from_dict(self, transactions: List[Dict]):
+    def create_transactions_from_dict(self, transactions: List[Dict]):
         """Create transactions from a list of dictionaries containing transaction details. Assumes that the dictionary contains keys `date`, `units`, `average_nav` and `transaction_type`."""
         keys_to_match = ["date", "units", "average_nav", "transaction_type"]
         for transaction in transactions:
@@ -285,7 +285,7 @@ class Holding:
 
     def __init__(
         self,
-        transcation_dict: Dict = None,
+        transaction_dict: Dict = None,
         scheme_code: int = None,
         isin: str = None,
         name: str = None,
@@ -305,11 +305,11 @@ class Holding:
         self.current_nav = current_nav
         self.logger = logger or get_simple_logger(self.__class__.__name__)
 
-        if transcation_dict:
-            self.scheme_code = transcation_dict.get("scheme_code")
-            self.isin = transcation_dict.get("isin")
-            purchase_transactions = transcation_dict.get("purchase_history", [])
-            sell_transactions = transcation_dict.get("sale_history", [])
+        if transaction_dict:
+            self.scheme_code = transaction_dict.get("scheme_code")
+            self.isin = transaction_dict.get("isin")
+            purchase_transactions = transaction_dict.get("purchase_history", [])
+            sell_transactions = transaction_dict.get("sale_history", [])
             self.create_transactions(purchase_transactions, sell_transactions)
         else:
             self.scheme_code = scheme_code
@@ -330,10 +330,10 @@ class Holding:
     def __getitem__(self, key):
         return self.all_transactions[key]
 
-    def create_transcations_dict(
+    def create_transactions_dict(
         self, transactions: List[Dict], transaction_type: str
     ) -> List[Dict]:
-        """Updates the transaction history dictionary with apporpriate transaction type and keys so that new `Transcation` objects can be created."""
+        """Updates the transaction history dictionary with apporpriate transaction type and keys so that new `Transaction` objects can be created."""
         if transaction_type == "purchase":
             date_column = "purchase_date"
         elif transaction_type == "sell":
@@ -373,12 +373,12 @@ class Holding:
         max_date: Union[str, datetime]
             The maximum date to consider for the transactions. This will be used to filter for transactions to get the correct values of various metrics.
         """
-        purchase_transactions = self.create_transcations_dict(
+        purchase_transactions = self.create_transactions_dict(
             purchase_transactions, "purchase"
         )
-        sell_transactions = self.create_transcations_dict(sell_transactions, "sell")
-        self.purchase_history.create_transcations_from_dict(purchase_transactions)
-        self.sell_history.create_transcations_from_dict(sell_transactions)
+        sell_transactions = self.create_transactions_dict(sell_transactions, "sell")
+        self.purchase_history.create_transactions_from_dict(purchase_transactions)
+        self.sell_history.create_transactions_from_dict(sell_transactions)
         self.all_transactions = self.purchase_history + self.sell_history
         self.all_transactions.sort_transactions()
         self.purchase_nav = self.purchase_history.average_nav(max_date)
@@ -444,20 +444,20 @@ class Holding:
 
         transactions = self.all_transactions.transaction_history
         transaction_dates = [x.date_ for x in transactions]
-        # transcation dates will be used to change the total units
+        # transaction dates will be used to change the total units
         total_units = [self.get_total_units(x) for x in transaction_dates]
-        transcation_values = [self.invested_amount(t) for t in transaction_dates]
-        transcation_df = pd.DataFrame(
+        transaction_values = [self.invested_amount(t) for t in transaction_dates]
+        transaction_df = pd.DataFrame(
             {
                 "date": transaction_dates,
                 "total_units": total_units,
-                "total_invested": transcation_values,
+                "total_invested": transaction_values,
             }
         )
-        transcation_df["date"] = pd.to_datetime(transcation_df["date"])
-        transcation_df.sort_values("date", inplace=True)
+        transaction_df["date"] = pd.to_datetime(transaction_df["date"])
+        transaction_df.sort_values("date", inplace=True)
 
-        merged = pd.merge_asof(nav_df, transcation_df, on="date")
+        merged = pd.merge_asof(nav_df, transaction_df, on="date")
         merged = merged[merged["total_units"].notna()]
         merged["total_invested"] = merged["total_invested"].clip(lower=0)
         merged = merged.query(
@@ -504,12 +504,12 @@ class Portfolio:
     def __init__(
         self,
         holdings: List[Holding] = None,
-        transcations: Dict = None,
+        transactions: Dict = None,
         logger: logging.Logger = None,
     ):
         self.holdings = holdings or []
-        if transcations:
-            self.create_holdings(transcations)
+        if transactions:
+            self.create_holdings(transactions)
         self.logger = logger or get_simple_logger(self.__class__.__name__)
 
     def __str__(self):
@@ -524,10 +524,10 @@ class Portfolio:
     def __getitem__(self, key):
         return self.holdings[key]
 
-    def create_holdings(self, transcations: Dict):
-        """Create holdings from the transcations dictionary. The dictionary must contain keys `scheme_code`, `purchase_transactions` and `sell_transactions`."""
-        for transcation in transcations:
-            holding = Holding(transcation_dict=transcation)
+    def create_holdings(self, transactions: Dict):
+        """Create holdings from the transactions dictionary. The dictionary must contain keys `scheme_code`, `purchase_transactions` and `sell_transactions`."""
+        for transaction in transactions:
+            holding = Holding(transaction_dict=transaction)
             self.holdings.append(holding)
 
     def get_invested_amount(self, max_date: Union[str, datetime] = None) -> float:
