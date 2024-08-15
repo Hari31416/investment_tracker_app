@@ -1,0 +1,13 @@
+{
+    "cookie": {
+        "expiry_days": 7,
+        "key": "must_have_key",
+        "name": "have_a_cookie"
+    },
+    "credentials": {
+        "usernames": {}
+    },
+    "pre-authorized": {
+        "emails": []
+    }
+}

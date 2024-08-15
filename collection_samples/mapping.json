@@ -1,0 +1,88 @@
+{
+    "isin_to_scheme_code": [
+        {
+            "symbol": "HDFC LIQUID FUND - DIRECT PLAN",
+            "isin": "INF179KB1HP9",
+            "scheme_code": 119091,
+            "short_name": "HDFC LIQUID"
+        },
+        {
+            "symbol": "QUANT MULTI ASSET FUND - DIRECT PLAN",
+            "isin": "INF966L01580",
+            "scheme_code": 120821,
+            "short_name": "QUANT MULTI ASSET"
+        },
+        {
+            "symbol": "NIPPON INDIA SMALL CAP FUND - DIRECT PLAN",
+            "isin": "INF204K01K15",
+            "scheme_code": 118778,
+            "short_name": "NIPPON SMALL CAP"
+        },
+        {
+            "symbol": "QUANT FLEXI CAP FUND - DIRECT PLAN",
+            "isin": "INF966L01911",
+            "scheme_code": 120843,
+            "short_name": "QUANT FLEXI CAP"
+        },
+        {
+            "symbol": "HDFC INDEX NIFTY 50 PLAN - DIRECT PLAN",
+            "isin": "INF179K01WM1",
+            "scheme_code": 119063,
+            "short_name": "HDFC NIFTY 50"
+        },
+        {
+            "symbol": "ICICI PRUDENTIAL NIFTY NEXT 50 INDEX FUND - DIRECT PLAN",
+            "isin": "INF109K01Y80",
+            "scheme_code": 120684,
+            "short_name": "ICICI NIFTY NEXT 50"
+        },
+        {
+            "symbol": "MOTILAL OSWAL NASDAQ 100 FUND OF FUND - DIRECT PLAN",
+            "isin": "INF247L01718",
+            "scheme_code": 145552,
+            "short_name": "MOTILAL NASDAQ"
+        },
+        {
+            "symbol": "MOTILAL OSWAL MIDCAP FUND - DIRECT PLAN",
+            "isin": "INF247L01445",
+            "scheme_code": 127042,
+            "short_name": "MOTILAL MIDCAP"
+        },
+        {
+            "symbol": "HDFC ELSS TAX SAVER FUND - DIRECT PLAN",
+            "isin": "INF179K01YS4",
+            "scheme_code": 119060,
+            "short_name": "HDFC ELSS"
+        },
+        {
+            "symbol": "ICICI PRUDENTIAL INFRASTRUCTURE FUND - DIRECT PLAN",
+            "isin": "INF109K018M4",
+            "scheme_code": 120621,
+            "short_name": "ICICI INFRASTRUCTURE"
+        },
+        {
+            "symbol": "SBI LONG TERM EQUITY FUND - DIRECT PLAN",
+            "isin": "INF200K01UM9",
+            "scheme_code": 119723,
+            "short_name": "SBI ELSS"
+        },
+        {
+            "symbol": "PARAG PARIKH TAX SAVER FUND - DIRECT PLAN",
+            "isin": "INF879O01100",
+            "scheme_code": 147481,
+            "short_name": "PARAG ELSS"
+        },
+        {
+            "symbol": "QUANT ELSS TAX SAVER FUND - DIRECT PLAN",
+            "isin": "INF966L01986",
+            "scheme_code": 120847,
+            "short_name": "QUANT ELSS"
+        },
+        {
+            "symbol": "Aditya Birla Sun Life PSU Equity Fund-Direct Plan-Growth",
+            "isin": "INF209KB1O82",
+            "scheme_code": 147844,
+            "short_name": "Birla PSU"
+        }
+    ]
+}

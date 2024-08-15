@@ -1,0 +1,45 @@
+{
+    "username": "hari31416",
+    "transactions": [
+        {
+            "scheme_code": 119091,
+            "isin": "INF179KB1HP9",
+            "purchase_history": [
+                {
+                    "units": 4.288,
+                    "average_nav": 4664.2362,
+                    "purchase_date": "2024-01-08"
+                }
+            ],
+            "sale_history": [
+                {
+                    "units": 4.288,
+                    "average_nav": 4718.7537,
+                    "sale_date": "2024-03-06"
+                }
+            ]
+        },
+        {
+            "scheme_code": 120821,
+            "isin": "INF966L01580",
+            "purchase_history": [
+                {
+                    "units": 87.688,
+                    "average_nav": 114.0344,
+                    "purchase_date": "2024-01-08"
+                },
+                {
+                    "units": 340.261,
+                    "average_nav": 117.5509,
+                    "purchase_date": "2024-01-15"
+                },
+                {
+                    "units": 91.896,
+                    "average_nav": 136.0162,
+                    "purchase_date": "2024-05-15"
+                }
+            ],
+            "sale_history": []
+        }
+    ]
+}
