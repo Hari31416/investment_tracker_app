@@ -129,14 +129,14 @@ def update_transcations(tradebook_file, username, debug=True):
         df = tradebook[tradebook["scheme_code"] == code]
         final_list.append(convert_one_trade(df))
 
-    final_list = {"username": username, env.MONGO_TRANSCATIONS_COLLECTION: final_list}
+    final_list = {"username": username, env.MONGO_TRANSACTIONS_COLLECTION: final_list}
     logger.info("Final list created")
     if debug:
         logger.info("Debug is on, not updating the database")
         return final_list
 
     db = client[env.MONGO_DB]
-    collection_name = env.MONGO_TRANSCATIONS_COLLECTION
+    collection_name = env.MONGO_TRANSACTIONS_COLLECTION
     collection = db[collection_name]
     if collection.find_one({"username": username}) is None:
         logger.info(f"Inserting transcations for user {username}")
