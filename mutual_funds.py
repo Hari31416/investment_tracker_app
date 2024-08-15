@@ -32,7 +32,7 @@ def get_simple_logger(name, level="info"):
     return logger
 
 
-class Trasaction:
+class Transaction:
     """A transaction is a single transaction in a mutual fund. It can be a purchase or a sell transaction.
 
     Attributes
@@ -102,7 +102,7 @@ class Trasaction:
         return -self.units
 
 
-class Purchase(Trasaction):
+class Purchase(Transaction):
     """A purchase transaction in a mutual fund. Inherits from `Transaction` class."""
 
     def __init__(self, date: str, units: float, average_nav: float, logger=None):
@@ -111,7 +111,7 @@ class Purchase(Trasaction):
         self.transaction_type = "purchase"
 
 
-class Sell(Trasaction):
+class Sell(Transaction):
     """A sell transaction in a mutual fund. Inherits from `Transaction` class."""
 
     def __init__(self, date: str, units: float, average_nav: float, logger=None):
@@ -120,9 +120,9 @@ class Sell(Trasaction):
         self.transaction_type = "sell"
 
 
-class TrasactionHistory:
+class TransactionHistory:
     def __init__(self, logger: Union[str, datetime] = None) -> float:
-        self.transaction_history_og: List[Trasaction] = []
+        self.transaction_history_og: List[Transaction] = []
         self.max_date = None
         self.logger = logger or get_simple_logger(self.__class__.__name__)
 
@@ -163,7 +163,7 @@ class TrasactionHistory:
         self.transaction_history.append(transaction)
 
     @property
-    def transaction_history(self) -> List[Trasaction]:
+    def transaction_history(self) -> List[Transaction]:
         """Filters the transaction history based on the max_date attribute and returns the filtered transactions. If max_date is None, returns the original transaction history. This is necessary to calculate the correct values of various metrics used in the class."""
         if self.max_date is None:
             return self.transaction_history_og
@@ -293,9 +293,9 @@ class Holding:
         logger: logging.Logger = None,
     ) -> float:
 
-        self.purchase_history = TrasactionHistory()
-        self.sell_history = TrasactionHistory()
-        self.all_transactions = TrasactionHistory()
+        self.purchase_history = TransactionHistory()
+        self.sell_history = TransactionHistory()
+        self.all_transactions = TransactionHistory()
         self.purchase_nav = 0.0
         self.purchase_units = 0.0
         self.sell_nav = 0.0
