@@ -105,8 +105,6 @@ if reset_password_modal.is_open():
         st.cache_data.clear()
         config = load_config_()
         time.sleep(2)
-        # close the modal
-        reset_password_modal.close()
 
 # Register new
 if st.session_state["authentication_status"]:
@@ -124,8 +122,6 @@ if register_modal.is_open():
         st.cache_data.clear()
         config = load_config_()
         time.sleep(2)
-        # close the modal
-        register_modal.close()
 
 
 def color_rules(val):
@@ -368,7 +364,7 @@ if modal.is_open():
             try:
                 update_transcations(file_picker, username, debug=False)
                 st.success(
-                    "Transcations Updated Successfully. Use the refresh button to see the updated data."
+                    "Transcations Updated Successfully. Data will be refreshed automatically"
                 )
 
                 time.sleep(2)
